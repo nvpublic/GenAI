@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with LLaMA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .night-mode {
+            background-color: #2c2c2c;
+            color:rgb(12, 11, 11); /* Changed to light gray for better readability */
+        }
+        .sidebar {
+            width: 200px;
+            background: #007bff;
+            color: #fff;
+            padding: 10px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .night-mode .sidebar {
+            background-color: #1a1a1a;
+        }
+        .sidebar h2 {
+            text-align: center;
+        }
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+        .sidebar li {
+            padding: 10px;
+            cursor: pointer;
+        }
+        .sidebar li:hover {
+            background: #0056b3;
+        }
+        .night-mode .sidebar li:hover {
+            background: #333;
+        }
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(245, 241, 241, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .chat-header {
+            background:rgb(11, 122, 240);
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+            font-size: 1.2em;
+        }
+        .night-mode .chat-header {
+            background-color:rgb(29, 29, 29);
+        }
+        .chat-messages {
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+            border-bottom: 1px solid #ddd;
+        }
+        .chat-input {
+            display: flex;
+            padding: 10px;
+        }
+        .chat-input input, .chat-input select {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .chat-input button {
+            padding: 10px 20px;
+            border: none;
+            background: #007bff;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .chat-input button:hover {
+            background: #0056b3;
+        }
+        .night-mode .chat-input input, .night-mode .chat-input select {
+            background-color:rgb(44, 30, 30);
+            color:rgb(243, 234, 234); /* Changed to light gray for better readability */
+            border: 1px solid #555;
+        }
+        .night-mode .chat-input button {
+            background-color: #555;
+        }
+        .night-mode .chat-input button:hover {
+            background-color: #777;
+        }
+        .message {
+            margin-bottom: 10px;
+            color: #000;
+        }
+        .night-mode .message {
+            color:rgb(42, 14, 107); /* Changed to light gray for better readability */
+        }
+        .message.user {
+            text-align: right;
+        }
+        .message.bot {
+            text-align: left;
+        }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .loading-spinner img {
+            width: 50px;
+        }
+        .loading-message {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+            color: #000;
+        }
+        .night-mode .loading-message {
+            color:rgb(148, 22, 22); /* Changed to light gray for better readability */
+        }
+    </style>
+    <script>
+        let searchHistory = [];
+        let loadingInterval;
+
+        function toggleNightMode() {
+            document.body.classList.toggle('night-mode');
+        }
+
+        async function sendMessage() {
+            const messageInput = document.getElementById("message");
+            const message = messageInput.value;
+            const model = document.getElementById("model").value;
+            const spinner = document.getElementById("loading-spinner");
+            const loadingMessage = document.getElementById("loading-message");
+
+            if (!message) {
+                alert("Please enter a message");
+                return;
+            }
+
+            displayMessage(message, "user");
+            messageInput.value = "";  // Clear the input field immediately after displaying the user's message
+
+            spinner.style.display = "block";  // Show the loading spinner
+            loadingMessage.style.display = "block";  // Show the loading message
+            let seconds = 0;
+            loadingMessage.textContent = `Sending message... (${seconds}s)`;
+            loadingInterval = setInterval(() => {
+                seconds++;
+                loadingMessage.textContent = `Sending message... (${seconds}s)`;
+            }, 1000);
+
+            try {
+                const response = await fetch("/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        model: model
+                    })
+                });
+
+                const data = await response.json();
+                displayMessage(data.response || data.error || "No response", "bot");
+                addToSearchHistory(message);
+            } catch (error) {
+                displayMessage("Error communicating with the server.", "bot");
+            } finally {
+                spinner.style.display = "none";  // Hide the loading spinner
+                loadingMessage.style.display = "none";  // Hide the loading message
+                clearInterval(loadingInterval);
+            }
+        }
+
+        function displayMessage(content, sender) {
+            const messagesContainer = document.querySelector(".chat-messages");
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("message", sender);
+            messageElement.textContent = content;
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function addToSearchHistory(message) {
+            searchHistory.push(message);
+            updateSearchHistory();
+        }
+
+        function updateSearchHistory() {
+            const historyContainer = document.getElementById("search-history");
+            historyContainer.innerHTML = "";
+            searchHistory.forEach((message, index) => {
+                const historyItem = document.createElement("li");
+                historyItem.textContent = message;
+                historyItem.onclick = () => {
+                    document.getElementById("message").value = message;
+                };
+                historyContainer.appendChild(historyItem);
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const inputField = document.getElementById("message");
+            inputField.addEventListener("keypress", function(event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    sendMessage();
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Search History</h2>
+        <ul id="search-history">
+            <!-- Search history will be displayed here -->
+        </ul>
+        <button onclick="toggleNightMode()">Toggle Night Mode</button>
+    </div>
+    <div class="chat-container">
+        <div class="chat-header">
+            Chat with LLaMA, DeepSeek, or GPT-3.5-turbo Model
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <!-- Messages will be displayed here -->
+        </div>
+        <div class="chat-input">
+            <input type="text" id="message" placeholder="Type your message here..." required>
+            <select id="model">
+                <option value="llama3.2">LLaMA 3.2</option>
+                <option value="llama3.3">LLaMA 3.3</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="gpt-3.5-turbo">GPT-3.5-turbo</option>
+            </select>
+            <button type="button" id="sendButton" onclick="sendMessage()">Send</button>
+        </div>
+        <div class="loading-spinner" id="loading-spinner">
+            <img src="https://i.imgur.com/llF5iyg.gif" alt="Loading...">
+        </div>
+        <div class="loading-message" id="loading-message">
+            Sending message...
+        </div>
+    </div>
+    <div id="response"></div>
+</body>
+</html>
