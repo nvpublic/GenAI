@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat with LLaMA</title>
+    <title>Generative AI Multi-Model Chat</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -16,60 +16,75 @@
         }
         .night-mode {
             background-color: #2c2c2c;
-            color:rgb(12, 11, 11); /* Changed to light gray for better readability */
+            color: #fff;
         }
         .sidebar {
-            width: 200px;
+            width: 100px;
+            min-width: 80px;
             background: #007bff;
             color: #fff;
             padding: 10px;
             box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
             overflow-y: auto;
             transition: background-color 0.3s, color 0.3s;
+            position: relative;
         }
-        .night-mode .sidebar {
-            background-color: #1a1a1a;
-        }
-        .sidebar h2 {
-            text-align: center;
-        }
-        .sidebar ul {
-            list-style: none;
-            padding: 0;
-        }
-        .sidebar li {
-            padding: 10px;
-            cursor: pointer;
-        }
-        .sidebar li:hover {
-            background: #0056b3;
-        }
-        .night-mode .sidebar li:hover {
-            background: #333;
-        }
+        .night-mode .sidebar { background-color: #1a1a1a; }
+        .sidebar h2 { text-align: center; }
+        .sidebar ul { list-style: none; padding: 0; }
+        .sidebar li { padding: 10px; cursor: pointer; }
+        .sidebar li:hover { background: #0056b3; }
+        .night-mode .sidebar li:hover { background: #333; }
         .chat-container {
             flex: 1;
             display: flex;
             flex-direction: column;
             background: #fff;
-            box-shadow: 0 0 10px rgba(245, 241, 241, 0.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             border-radius: 8px;
             overflow: hidden;
             transition: background-color 0.3s, color 0.3s;
         }
         .chat-header {
-            background:rgb(11, 122, 240);
+            background: #007bff;
             color: #fff;
             padding: 10px;
             text-align: center;
             font-size: 1.2em;
         }
-        .night-mode .chat-header {
-            background-color:rgb(29, 29, 29);
+        .night-mode .chat-header { background-color: #1a1a1a; }
+        .response-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 10px;
+            padding: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .response-window {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s, color 0.3s;
+            max-height: 200px; /* Set a max height for the response window */
+            overflow: auto; /* Enable scrolling if content exceeds max height */
+        }
+        .night-mode .response-window {
+            background-color: #2c2c2c;
+            color: #fff;
+        }
+        .response-header {
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .response-window div {
+            word-wrap: break-word; /* Ensure long words break and wrap within the box */
         }
         .chat-messages {
             padding: 20px;
-            height: 400px;
+            height: 300px;
             overflow-y: auto;
             border-bottom: 1px solid #ddd;
         }
@@ -77,14 +92,25 @@
             display: flex;
             padding: 10px;
         }
-        .chat-input input, .chat-input select {
-            flex: 1;
+        .chat-input select,
+        .chat-input textarea {
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-right: 10px;
         }
+        .chat-input select { width: 150px; }
+        .chat-input textarea {
+            flex: 3;
+            resize: none;
+        }
+        .chat-input select {
+            flex: 0;
+            width: auto;
+            margin: 0 10px;
+        }
         .chat-input button {
+            flex: 0;
             padding: 10px 20px;
             border: none;
             background: #007bff;
@@ -92,114 +118,38 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        .chat-input button:hover {
-            background: #0056b3;
-        }
-        .night-mode .chat-input input, .night-mode .chat-input select {
-            background-color:rgb(44, 30, 30);
-            color:rgb(243, 234, 234); /* Changed to light gray for better readability */
+        .chat-input button:hover { background: #0056b3; }
+        .night-mode .chat-input textarea, .night-mode .chat-input select {
+            background-color: #2c2c2c;
+            color: #fff;
             border: 1px solid #555;
         }
-        .night-mode .chat-input button {
-            background-color: #555;
-        }
-        .night-mode .chat-input button:hover {
-            background-color: #777;
-        }
+        .night-mode .chat-input button { background-color: #555; }
+        .night-mode .chat-input button:hover { background-color: #777; }
         .message {
             margin-bottom: 10px;
             color: #000;
         }
-        .night-mode .message {
-            color:rgb(42, 14, 107); /* Changed to light gray for better readability */
+        .night-mode .message { color: #fff; }
+        .message.user { text-align: right; }
+        .message.bot { text-align: left; }
+        .resizer {
+            width: 5px;
+            cursor: ew-resize;
+            background-color: #007bff;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
         }
-        .message.user {
-            text-align: right;
-        }
-        .message.bot {
-            text-align: left;
-        }
-        .loading-spinner {
-            display: none;
-            text-align: center;
-            margin-top: 10px;
-        }
-        .loading-spinner img {
-            width: 50px;
-        }
-        .loading-message {
-            display: none;
-            text-align: center;
-            margin-top: 10px;
-            color: #000;
-        }
-        .night-mode .loading-message {
-            color:rgb(148, 22, 22); /* Changed to light gray for better readability */
-        }
+        .night-mode .resizer { background-color: #1a1a1a; }
     </style>
     <script>
         let searchHistory = [];
-        let loadingInterval;
+        const models = ["llama","deepseek","gpt-3.5-turbo","gpt-4","dalle-mini"];
 
         function toggleNightMode() {
             document.body.classList.toggle('night-mode');
-        }
-
-        async function sendMessage() {
-            const messageInput = document.getElementById("message");
-            const message = messageInput.value;
-            const model = document.getElementById("model").value;
-            const spinner = document.getElementById("loading-spinner");
-            const loadingMessage = document.getElementById("loading-message");
-
-            if (!message) {
-                alert("Please enter a message");
-                return;
-            }
-
-            displayMessage(message, "user");
-            messageInput.value = "";  // Clear the input field immediately after displaying the user's message
-
-            spinner.style.display = "block";  // Show the loading spinner
-            loadingMessage.style.display = "block";  // Show the loading message
-            let seconds = 0;
-            loadingMessage.textContent = `Sending message... (${seconds}s)`;
-            loadingInterval = setInterval(() => {
-                seconds++;
-                loadingMessage.textContent = `Sending message... (${seconds}s)`;
-            }, 1000);
-
-            try {
-                const response = await fetch("/chat", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        message: message,
-                        model: model
-                    })
-                });
-
-                const data = await response.json();
-                displayMessage(data.response || data.error || "No response", "bot");
-                addToSearchHistory(message);
-            } catch (error) {
-                displayMessage("Error communicating with the server.", "bot");
-            } finally {
-                spinner.style.display = "none";  // Hide the loading spinner
-                loadingMessage.style.display = "none";  // Hide the loading message
-                clearInterval(loadingInterval);
-            }
-        }
-
-        function displayMessage(content, sender) {
-            const messagesContainer = document.querySelector(".chat-messages");
-            const messageElement = document.createElement("div");
-            messageElement.classList.add("message", sender);
-            messageElement.textContent = content;
-            messagesContainer.appendChild(messageElement);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
         function addToSearchHistory(message) {
@@ -220,6 +170,116 @@
             });
         }
 
+        function displayMessage(content, sender) {
+            const chatMessagesElem = document.querySelector(".chat-messages");
+            const msgDiv = document.createElement("div");
+            msgDiv.classList.add("message", sender);
+            msgDiv.textContent = content;
+            chatMessagesElem.appendChild(msgDiv);
+            chatMessagesElem.scrollTop = chatMessagesElem.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const modelSelect = document.getElementById("modelSelector");
+            const selectedValue = modelSelect.value;
+
+            let queriedModels = [];
+            if (selectedValue === "all") {
+                queriedModels = models;
+            } else {
+                queriedModels = [selectedValue];
+            }
+
+            const messageInput = document.getElementById("message");
+            const responseContainer = document.getElementById("response-container");
+            const userMessage = messageInput.value.trim();
+            if (!userMessage) return;
+
+            displayMessage(userMessage, "user");
+            addToSearchHistory(userMessage);
+
+            // Clear old responses
+            responseContainer.innerHTML = "";
+            messageInput.value = "";
+
+            // Loop over selected models
+            for (let i = 0; i < queriedModels.length; i++) {
+                const modelName = queriedModels[i];
+
+                // Create a window
+                const windowDiv = document.createElement("div");
+                windowDiv.classList.add("response-window");
+
+                const headerDiv = document.createElement("div");
+                headerDiv.classList.add("response-header");
+                headerDiv.textContent = `Model: ${modelName}`;
+                windowDiv.appendChild(headerDiv);
+
+                const countdownDiv = document.createElement("div");
+                countdownDiv.classList.add("countdown");
+                countdownDiv.innerText = "Querying...";
+                windowDiv.appendChild(countdownDiv);
+
+                const responseDiv = document.createElement("div");
+                responseDiv.innerText = "";
+                windowDiv.appendChild(responseDiv);
+
+                responseContainer.appendChild(windowDiv);
+
+                // Start a live counter
+                let seconds = 0;
+                const intervalId = setInterval(() => {
+                    seconds += 1;
+                    countdownDiv.innerText = `Time elapsed: ${seconds}s`;
+                }, 1000);
+
+                try {
+                    const resp = await fetch("/chat", {
+                        method: "POST",
+                        headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({ message: userMessage, models: [modelName] }),
+                    });
+                    if (!resp.ok) {
+                        throw new Error("Network response not OK");
+                    }
+                    const data = await resp.json();
+                    const modelResp = data.responses?.[0];
+                    if (modelResp) {
+                        responseDiv.innerText = modelResp.response;
+                        clearInterval(intervalId);
+                        countdownDiv.innerText = `Time taken: ${modelResp.time_taken.toFixed(2)}s`;
+                    } else {
+                        clearInterval(intervalId);
+                        countdownDiv.innerText = "Error: No response from server";
+                    }
+                } catch (err) {
+                    clearInterval(intervalId);
+                    countdownDiv.innerText = "Error querying model";
+                    console.error(err);
+                }
+            }
+        }
+
+        function makeResizableSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const resizer = document.createElement('div');
+            resizer.classList.add('resizer');
+            sidebar.appendChild(resizer);
+
+            resizer.addEventListener('mousedown', function(e) {
+                document.addEventListener('mousemove', resize);
+                document.addEventListener('mouseup', stopResize);
+            });
+
+            function resize(e) {
+                sidebar.style.width = e.clientX + 'px';
+            }
+            function stopResize() {
+                document.removeEventListener('mousemove', resize);
+                document.removeEventListener('mouseup', stopResize);
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
             const inputField = document.getElementById("message");
             inputField.addEventListener("keypress", function(event) {
@@ -228,41 +288,36 @@
                     sendMessage();
                 }
             });
+            makeResizableSidebar();
         });
     </script>
 </head>
 <body>
     <div class="sidebar">
         <h2>Search History</h2>
-        <ul id="search-history">
-            <!-- Search history will be displayed here -->
-        </ul>
+        <ul id="search-history"></ul>
         <button onclick="toggleNightMode()">Toggle Night Mode</button>
     </div>
     <div class="chat-container">
         <div class="chat-header">
-            Chat with LLaMA, DeepSeek, or GPT-3.5-turbo Model
+            Generative AI Multi-Model Chat
         </div>
-        <div class="chat-messages" id="chat-messages">
-            <!-- Messages will be displayed here -->
-        </div>
+        <div id="response-container" class="response-container"></div>
+        <div class="chat-messages" id="chat-messages"></div>
         <div class="chat-input">
-            <input type="text" id="message" placeholder="Type your message here..." required>
-            <select id="model">
-                <option value="llama3.2">LLaMA 3.2</option>
-                <option value="llama3.3">LLaMA 3.3</option>
-                <option value="deepseek">DeepSeek</option>
-                <option value="gpt-3.5-turbo">GPT-3.5-turbo</option>
+            <!-- New dropdown -->
+            <select id="modelSelector">
+                <option value="all">All Models</option>
+                <option value="llama">llama</option>
+                <option value="deepseek">deepseek</option>
+                <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                <option value="gpt-4">gpt-4</option>
+                <option value="dalle-mini">dalle-mini</option>
             </select>
-            <button type="button" id="sendButton" onclick="sendMessage()">Send</button>
-        </div>
-        <div class="loading-spinner" id="loading-spinner">
-            <img src="https://i.imgur.com/llF5iyg.gif" alt="Loading...">
-        </div>
-        <div class="loading-message" id="loading-message">
-            Sending message...
+
+            <textarea id="message" rows="2" placeholder="Type your message..."></textarea>
+            <button onclick="sendMessage()">Send</button>
         </div>
     </div>
-    <div id="response"></div>
 </body>
 </html>
